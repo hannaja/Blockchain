@@ -1,0 +1,100 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"strconv"
+
+	"github.com/hyperledger/fabric/core/chaincode/shim"
+)
+
+// SimpleChaincode is a receiver of the shim interface
+type SimpleChaincode struct {
+}
+
+// main function will be invoked when each peer deploys their code to blockchain
+func main() {
+	err := shim.Start(new(SimpleChaincode))
+	if err != nil {
+		fmt.Printf("Error starting Simple chaincode: %s", err)
+	}
+}
+
+// Init method is called when you first deploy chaincode, Init is used if you need to set the initial value in a ledger
+func (t *SimpleChaincode) Init(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Println("entering Init")
+	if len(args) != 1 {
+		errorMsg := "Incorrect number of args, expect 1 and received " + strconv.Itoa(len(args))
+		return nil, errors.New(errorMsg)
+	}
+
+	err := stub.PutState("bc_hello_world", []byte(args[0]))
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("exiting Init")
+	return nil, nil
+}
+
+// Invoke is called when you need to call a function on the smart contract, this function acts as the router for your chaincode
+func (t *SimpleChaincode) Invoke(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Printf("entering Invoke %s\n", function)
+	if len(args) != 2 {
+		errorMsg := "Incorrect number of args, expect 1 and received " + strconv.Itoa(len(args))
+		return nil, errors.New(errorMsg)
+	}
+	if function == "Init" {
+		return t.Init(stub, function, args)
+	} else if function == "write" {
+		return t.Write(stub, args)
+	}
+	fmt.Printf(" Invoke could not find any matching function with the name %s \n", function)
+	return nil, errors.New("Invoke Received unknown function")
+}
+
+// Query function is called to read value from ledger
+func (t *SimpleChaincode) Query(stub shim.ChaincodeStubInterface, function string, args []string) ([]byte, error) {
+	fmt.Println("Entering Query Function")
+	if function == "Read" {
+		return t.Read(stub, args)
+	}
+	err := errors.New("Received unknown query function")
+
+	fmt.Println("Exiting Write Function")
+	return nil, err
+}
+
+// Write function is called when writing a name/value
+func (t *SimpleChaincode) Write(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	fmt.Println("Entering Write Function")
+
+	if len(args) != 2 {
+		errorMsg := "Incorrect number of args, expect 2 and received " + strconv.Itoa(len(args))
+		return nil, errors.New(errorMsg)
+	}
+	err := stub.PutState(args[0], []byte(args[1]))
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("exiting Write Function")
+	return nil, nil
+
+}
+
+// Write function is called when writing a name/value
+func (t *SimpleChaincode) Read(stub shim.ChaincodeStubInterface, args []string) ([]byte, error) {
+	fmt.Println("Entering Read Function")
+
+	if len(args) != 1 {
+		errorMsg := "Incorrect number of args, expect 1 and received " + strconv.Itoa(len(args))
+		return nil, errors.New(errorMsg)
+	}
+
+	valueAsBytes, err := stub.GetState(args[0])
+	if err != nil {
+		return nil, err
+	}
+	fmt.Println("exiting Write Function")
+	return valueAsBytes, nil
+
+}
